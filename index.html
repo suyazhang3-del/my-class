@@ -3,64 +3,109 @@
 <head>
   <meta charset='utf-8' />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我的全能日程 & 任务站</title>
+  <title>我的全能日程 & 云同步站</title>
   <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
   <style>
     :root { --course-bg: #e7f5ff; --prof-bg: #ebfbee; --user-bg: #fff4e6; --text: #000000; }
-    body { font-family: sans-serif; margin: 0; background: #f1f3f5; color: #333; padding-bottom: 50px; }
-    #calendar { max-width: 1100px; margin: 10px auto; background: white; padding: 10px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    body { font-family: sans-serif; margin: 0; background: #f1f3f5; color: #333; padding-bottom: 80px; }
     
-    /* 任务看板样式 */
+    /* 置顶同步栏 */
+    .sync-bar { position: sticky; top: 0; z-index: 9999; background: #1a1a1a; padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+    .sync-inputs { display: flex; gap: 5px; }
+    #tokenInput { flex: 1; padding: 8px; border-radius: 4px; border: none; font-size: 12px; }
+    .btn { border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; }
+    .btn-save { background: #22c55e; flex: 2; }
+    .btn-load { background: #3b82f6; flex: 1; }
+    
+    #calendar { max-width: 1100px; margin: 10px auto; background: white; padding: 10px; border-radius: 12px; }
     .task-container { max-width: 1100px; margin: 20px auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; padding: 0 10px; }
-    .task-card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #3b82f6; }
-    .task-card.research { border-top-color: #22c55e; } /* 科研类绿色 */
-    .task-card h3 { margin-top: 0; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+    .task-card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 6px solid #1e40af; }
+    .task-card.research { border-top-color: #16a34a; }
+    .task-card h3 { margin-top: 0; font-size: 17px; color: #000; font-weight: 900; border-bottom: 2px solid #eee; padding-bottom: 8px; }
     
-    .task-item { display: flex; align-items: center; margin: 8px 0; gap: 8px; }
-    .task-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-    .task-item input[type="text"] { flex: 1; border: none; border-bottom: 1px solid transparent; outline: none; padding: 2px; }
-    .task-item input[type="text"]:focus { border-bottom: 1px solid #ddd; }
-    .task-item.completed input[type="text"] { text-decoration: line-through; color: #888; }
+    .task-item { display: flex; align-items: center; margin: 10px 0; gap: 10px; }
+    .task-item input[type="text"] { flex: 1; border: none; font-size: 15px; color: #000; font-weight: 700; outline: none; }
+    .task-item.completed input[type="text"] { text-decoration: line-through; color: #999; }
+    .add-task-btn { background: #f0f0f0; border: none; width: 100%; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #000; font-weight: bold; }
     
-    .add-task-btn { background: #f0f0f0; border: none; width: 100%; padding: 5px; border-radius: 4px; cursor: pointer; font-size: 12px; color: #666; transition: 0.2s; }
-    .add-task-btn:hover { background: #e0e0e0; }
-    .del-task { color: #ff8787; cursor: pointer; font-size: 12px; display: none; }
-    .task-item:hover .del-task { display: block; }
-
-    /* 日历事件样式 */
-    .fc-event-title, .fc-event-time { color: var(--text) !important; font-weight: bold !important; }
-    .event-school { border-left: 4px solid #3b82f6 !important; background: var(--course-bg) !important; }
-    .event-prof { border-left: 4px solid #22c55e !important; background: var(--prof-bg) !important; }
-    .event-user { border-left: 4px solid #f97316 !important; background: var(--user-bg) !important; }
+    .fc-event-title, .fc-event-time { color: #000 !important; font-weight: 800 !important; font-size: 1em !important; }
+    .event-school { border-left: 5px solid #1e40af !important; background: var(--course-bg) !important; }
+    .event-prof { border-left: 5px solid #16a34a !important; background: var(--prof-bg) !important; }
+    .event-user { border-left: 5px solid #ea580c !important; background: var(--user-bg) !important; }
   </style>
 </head>
 <body>
 
-  <div id='calendar'></div>
-
-  <div style="max-width:1100px; margin: 30px auto 10px; padding: 0 15px;">
-    <h2 style="font-size: 20px;">📌 课程任务看板</h2>
+  <div class="sync-bar">
+    <div style="color: #fff; font-size: 12px; font-weight: bold;">🔑 云同步面板 (第一次使用请粘贴 Token)</div>
+    <div class="sync-inputs">
+      <input type="password" id="tokenInput" placeholder="粘贴 ghp_ 开头的 Token">
+      <button class="btn btn-save" onclick="cloudSync('upload')">💾 同步到云端</button>
+      <button class="btn btn-load" onclick="cloudSync('download')">🔄 拉取云端</button>
+    </div>
   </div>
 
-  <div class="task-container" id="taskBoard">
-    </div>
+  <div id='calendar'></div>
+  <div style="max-width:1100px; margin: 30px auto 10px; padding: 0 15px;"><h2 style="font-size: 22px; color: #000; font-weight: 900;">📌 课程任务看板</h2></div>
+  <div class="task-container" id="taskBoard"></div>
 
   <script>
+    let calendar;
+    let taskData = JSON.parse(localStorage.getItem('my_task_data')) || {};
+    const STORAGE_KEY = 'my_flexible_calendar_v_final_fixed';
+    const GIST_ID_KEY = 'my_sync_gist_id';
+
+    // 云同步功能
+    async function cloudSync(type) {
+      const token = document.getElementById('tokenInput').value;
+      if (!token) return alert('请输入 Token！');
+      localStorage.setItem('my_github_token', token);
+
+      const dataToSync = {
+        events: calendar.getEvents().map(e => ({ id:e.id, title:e.title, start:e.startStr, end:e.endStr, className:e.classNames[0] })),
+        tasks: taskData
+      };
+
+      try {
+        let gistId = localStorage.getItem(GIST_ID_KEY);
+        let url = gistId ? `https://api.github.com/gists/${gistId}` : `https://api.github.com/gists`;
+        
+        if (type === 'upload') {
+          const res = await fetch(url, {
+            method: gistId ? 'PATCH' : 'POST',
+            headers: { 'Authorization': `token ${token}` },
+            body: JSON.stringify({ description: "Calendar Data", public: false, files: { "data.json": { content: JSON.stringify(dataToSync) } } })
+          });
+          const result = await res.json();
+          localStorage.setItem(GIST_ID_KEY, result.id);
+          alert('✅ 已同步到云端！');
+        } else {
+          const res = await fetch(url, { headers: { 'Authorization': `token ${token}` } });
+          const result = await res.json();
+          const cloudData = JSON.parse(result.files["data.json"].content);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData.events));
+          localStorage.setItem('my_task_data', JSON.stringify(cloudData.tasks));
+          location.reload();
+        }
+      } catch (e) { alert('同步失败，请检查 Token'); }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
-      // --- 日历部分 (保留之前所有功能) ---
+      document.getElementById('tokenInput').value = localStorage.getItem('my_github_token') || '';
       var calendarEl = document.getElementById('calendar');
-      let storedEvents = JSON.parse(localStorage.getItem('my_flexible_calendar_v_final_fixed'));
+      let storedEvents = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
       if (!storedEvents) {
         storedEvents = [];
         const startDay = new Date('2026-03-09');
         const baseCourses = [
-            { t: '1207\n创业管理', d: 1, s: '10:20', e: '11:50' },
-            { t: '1201\n管理研究与论文写作', d: 1, s: '14:00', e: '15:30' },
-            { t: '1202\n审辨式思维', d: 1, s: '15:50', e: '17:20' },
-            { t: '1201\n组织理论', d: 2, s: '14:00', e: '15:30' },
-            { t: '操场\n乒乓球', d: 3, s: '08:30', e: '10:00' },
-            { t: '1203\n消费者行为学', d: 3, s: '14:00', e: '15:30' },
-            { t: '1201\n领导学', d: 4, s: '10:20', e: '11:50' }
+          { t: '1207\n创业管理', d: 1, s: '10:20', e: '11:50' },
+          { t: '1201\n管理研究与论文写作', d: 1, s: '14:00', e: '15:30' },
+          { t: '1202\n审辨式思维', d: 1, s: '15:50', e: '17:20' },
+          { t: '1201\n组织理论', d: 2, s: '14:00', e: '15:30' },
+          { t: '操场\n乒乓球', d: 3, s: '08:30', e: '10:00' },
+          { t: '1203\n消费者行为学', d: 3, s: '14:00', e: '15:30' },
+          { t: '1201\n领导学', d: 4, s: '10:20', e: '11:50' }
         ];
         for (let i = 0; i < 16; i++) {
           baseCourses.forEach(bc => {
@@ -69,106 +114,64 @@
             storedEvents.push({ id: 'c_'+Math.random(), title: bc.t, start: date.toISOString().split('T')[0]+'T'+bc.s+':00', end: date.toISOString().split('T')[0]+'T'+bc.e+':00', className: 'event-school' });
           });
         }
-        // 教授课
         const profConfigs = [{t:'Online\nTA 1', s:'2026-03-01T19:00', h: 2.25},{t:'Online\nLec 1', s:'2026-03-07T20:15', h: 1.5},{t:'Online\nTA 2', s:'2026-03-14T19:00', h: 2.25},{t:'Online\nLec 2', s:'2026-03-15T20:00', h: 1.5},{t:'Online\nLec 3', s:'2026-03-21T20:15', h: 1.5},{t:'Online\nTA 3', s:'2026-03-28T19:00', h: 2.25},{t:'Online\nLec 4', s:'2026-03-29T20:00', h: 1.5},{t:'Online\nLec 5', s:'2026-04-04T21:00', h: 1.5},{t:'Online\nTA 4', s:'2026-04-05T19:00', h: 2.25},{t:'Online\nTA 5', s:'2026-04-11T19:00', h: 2.25},{t:'Online\nTA 6', s:'2026-04-12T19:00', h: 2.25},{t:'Online\nPre Sem', s:'2026-04-18T21:00', h: 3},{t:'Online\nLec 6', s:'2026-04-19T21:00', h: 1.5},{t:'Online\nPre', s:'2026-04-25T20:15', h: 3}];
         profConfigs.forEach(p => {
           let start = new Date(p.s);
           let end = new Date(start.getTime() + p.h * 60 * 60 * 1000);
           storedEvents.push({ id: 'p_'+Math.random(), title: p.t, start: p.s+':00', end: end.toISOString().replace(/\.\d+Z$/, ''), className: 'event-prof' });
         });
-        localStorage.setItem('my_flexible_calendar_v_final_fixed', JSON.stringify(storedEvents));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(storedEvents));
       }
 
-      var calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridWeek', initialDate: '2026-03-01', locale: 'zh-cn', allDaySlot: false, slotMinTime: '08:00', slotMaxTime: '23:30', editable: true, selectable: true,
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek', initialDate: '2026-03-09', locale: 'zh-cn', allDaySlot: false, slotMinTime: '08:00', slotMaxTime: '23:30', editable: true, selectable: true,
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,dayGridMonth' },
         events: storedEvents,
-        save: function() {
-          const all = calendar.getEvents().map(e => ({ id:e.id, title:e.title, start:e.startStr, end:e.endStr, className:e.classNames[0] }));
-          localStorage.setItem('my_flexible_calendar_v_final_fixed', JSON.stringify(all));
-        },
         select: function(info) {
           var title = prompt('输入计划:');
-          if (title) { calendar.addEvent({ id:'u_'+Date.now(), title:'📌 '+title, start:info.startStr, end:info.endStr, className:'event-user' }); this.save(); }
+          if (title) calendar.addEvent({ id:'u_'+Date.now(), title:'📌 '+title, start:info.startStr, end:info.endStr, className:'event-user' });
           calendar.unselect();
         },
-        eventDrop: function() { this.save(); },
-        eventResize: function() { this.save(); },
         eventClick: function(info) {
           var action = prompt('修改或输入 "del" 删除:', info.event.title);
-          if (action === "del") { info.event.remove(); this.save(); }
-          else if (action && action !== info.event.title) { info.event.setProp('title', action); this.save(); }
+          if (action === "del") info.event.remove();
+          else if (action) info.event.setProp('title', action);
         }
       });
       calendar.render();
 
-      // --- 任务看板部分 ---
       const categories = [
         { id: 'research', name: '🧪 科研大类 (教授课)', colorClass: 'research' },
-        { id: 'entre', name: '创业管理' },
-        { id: 'paper', name: '论文写作' },
-        { id: 'thinking', name: '审辨式思维' },
-        { id: 'org', name: '组织理论' },
-        { id: 'pingpong', name: '乒乓球' },
-        { id: 'consumer', name: '消费者行为学' },
+        { id: 'entre', name: '创业管理' }, { id: 'paper', name: '论文写作' },
+        { id: 'thinking', name: '审辨式思维' }, { id: 'org', name: '组织理论' },
+        { id: 'pingpong', name: '乒乓球' }, { id: 'consumer', name: '消费者行为学' },
         { id: 'leader', name: '领导学' }
       ];
 
-      let taskData = JSON.parse(localStorage.getItem('my_task_data')) || {};
-
-      function renderTasks() {
-        const board = document.getElementById('taskBoard');
-        board.innerHTML = '';
+      window.renderTasks = function() {
+        const board = document.getElementById('taskBoard'); board.innerHTML = '';
         categories.forEach(cat => {
           const card = document.createElement('div');
           card.className = `task-card ${cat.colorClass || ''}`;
           card.innerHTML = `<h3>${cat.name}</h3><div id="list-${cat.id}"></div><button class="add-task-btn" onclick="addTask('${cat.id}')">+ 添加任务</button>`;
           board.appendChild(card);
-          
-          const list = taskData[cat.id] || [];
-          const listEl = document.getElementById(`list-${cat.id}`);
-          list.forEach((task, index) => {
+          (taskData[cat.id] || []).forEach((task, index) => {
             const item = document.createElement('div');
             item.className = `task-item ${task.done ? 'completed' : ''}`;
             item.innerHTML = `
               <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTask('${cat.id}', ${index})">
               <input type="text" value="${task.text}" onchange="editTask('${cat.id}', ${index}, this.value)">
-              <span class="del-task" onclick="delTask('${cat.id}', ${index})">✕</span>
-            `;
-            listEl.appendChild(item);
+              <span style="color:red;cursor:pointer" onclick="delTask('${cat.id}', ${index})">✕</span>`;
+            document.getElementById(`list-${cat.id}`).appendChild(item);
           });
         });
-      }
-
-      window.addTask = function(catId) {
-        if (!taskData[catId]) taskData[catId] = [];
-        taskData[catId].push({ text: '', done: false });
-        saveTasks();
       };
-
-      window.toggleTask = function(catId, index) {
-        taskData[catId][index].done = !taskData[catId][index].done;
-        saveTasks();
-      };
-
-      window.editTask = function(catId, index, newText) {
-        taskData[catId][index].text = newText;
-        saveTasks();
-      };
-
-      window.delTask = function(catId, index) {
-        taskData[catId].splice(index, 1);
-        saveTasks();
-      };
-
-      function saveTasks() {
-        localStorage.setItem('my_task_data', JSON.stringify(taskData));
-        renderTasks();
-      }
-
+      window.addTask = function(id) { if(!taskData[id]) taskData[id]=[]; taskData[id].push({text:'', done:false}); renderTasks(); };
+      window.toggleTask = function(id, i) { taskData[id][i].done = !taskData[id][i].done; renderTasks(); };
+      window.editTask = function(id, i, v) { taskData[id][i].text = v; };
+      window.delTask = function(id, i) { taskData[id].splice(i, 1); renderTasks(); };
       renderTasks();
     });
   </script>
 </body>
-
 </html>
